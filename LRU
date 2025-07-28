@@ -1,0 +1,125 @@
+/*
+  Resource : gfg 
+  https://www.geeksforgeeks.org/dsa/lru-cache-implementation-using-double-linked-lists/
+
+  Designing a LRU (least recently used) cache 
+    - put (if key exist: update)
+    - get (if not exist -1)
+    - capacity (c) and priority changed when it fetched/update/put
+
+  3 Approaches :
+    - using array - O(n) time , O(n) space but finding priorities (O(n)-check timestamp)
+    - using singly LinkedList - O(n) time , O(n) space 
+    - doubly linked list with hashing - all O(1)
+*/
+
+#include<bits/stdc++.h>
+using namespace std ; 
+
+// approach 1 : 
+class LRUCache1 {
+    public:
+    int key ; 
+    int value ; 
+    int time_stamp;
+
+    LRUCache1(int k, int v, int time){
+        key = k ;
+        value = v; 
+        time_stamp = time;
+    }
+};
+
+// approach 3 : 
+struct Node {
+    int key ; 
+    int value ; 
+    Node *prev ; 
+    Node *next;
+
+
+    Node(int k, int v ){
+        key = k ; 
+        value = v; 
+        prev = nullptr; 
+        next = nullptr;
+    }
+};
+
+class LRUCache{
+    public: 
+    int capacity; 
+    unordered_map<int,Node *> cacheMap; 
+    Node *head ;
+    Node *tail;
+
+    LRUCache (int capacity) {
+        this -> capacity = capacity;
+        head = new Node (-1,-1);
+        tail = new Node (-1,-1);
+        head->next = tail ; 
+        tail->next = head ; 
+    }
+
+    int get (int key) {
+        if(cacheMap.find(key)==cacheMap.end()) return -1 ; 
+        Node *node = cacheMap[key] ; 
+        remove(node); 
+        add(node);
+        return node->value;
+    }
+
+    void put (int key, int value) {
+        if(cacheMap.find(key)!=cacheMap.end()) {
+            Node *old_node = cacheMap[key] ; 
+            remove(old_node); 
+            delete(old_node);
+        }
+
+        Node *node = new Node(key,value);
+        cacheMap[key] = node;
+        add(node);
+
+
+        if(cacheMap.size()>capacity) {
+            Node *node_to_delete = tail->prev ; 
+            remove(node_to_delete); 
+            cacheMap.erase(node_to_delete->key);
+            delete(node_to_delete);
+        }
+    }
+
+     // Add a node right after the head (most recently used position)
+    void add (Node *node){
+        Node *next_node = head->next; 
+        head->next = node ; 
+        node->next = next_node;
+        node->prev = head; 
+        next_node->prev = node;
+    }
+
+     // Remove a node from the list
+    void remove(Node *node) {
+        Node *prev_node = node->prev; 
+        Node *next_node = node->next; 
+        prev_node->next = next_node; 
+        next_node ->prev = prev_node; 
+    }
+};
+
+int main () {
+
+    LRUCache cache(2);
+    
+    cache.put(1, 1); 
+    cache.put(2, 2);
+    cout << cache.get(1) << endl;
+    cache.put(3, 3);
+    cout  << cache.get(2) << endl;
+    cache.put(4, 4);
+    cout << cache.get(1) << endl;
+    cout << cache.get(3) << endl;
+    cout << cache.get(4) << endl;
+
+return 0;
+}
