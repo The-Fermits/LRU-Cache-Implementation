@@ -1,0 +1,319 @@
+/*
+  Resource : gfg 
+  https://www.geeksforgeeks.org/dsa/least-frequently-used-lfu-cache-implementation/#naive-approach-1-lfu-cache-using-an-array-of-nodes-on-time-and-on-space
+
+  Designing a LFU (least frequently used) cache , if ties - remove which is LRU
+    - put (if key exist: update) 
+    - get (if not exist -1) 
+    - capacity (c) and frequency changed when it fetched/update/put
+
+  3 Approaches :
+    - using array - O(n) time , O(n) space 
+    - using singly LinkedList - O(n) time , O(n) space 
+    - doubly linked list with hashing - all O(1)
+
+    Approach 3 : 
+    get : search in cache_map and increase freq if exist 
+    for every freq : Maintain a seperate linked List whose head,tail stored in freq_map 
+    if size exceed : delete the last node of min_freq linked List 
+*/
+
+#include<bits/stdc++.h>
+using namespace std ; 
+
+// Approach 1 : using array of size c 
+struct Node1 {
+    public:
+    int key ; 
+    int value ; 
+    int time_stamp ; 
+    int freq ; 
+    
+    Node1 (int k , int v , int time ) {
+        this->key = k ; 
+        this->value = v ; 
+        this->time_stamp = time ;
+        this-> freq = 1; 
+    }
+};
+
+class LFUCache1 {
+    public:
+    int current_time ; 
+    int capacity; 
+    int cur_size;
+    vector<Node1 *> cacheList;
+
+    LFUCache1(int capacity){
+        this->capacity = capacity; 
+        this->current_time = 0; 
+        this->cur_size = 0; 
+        cacheList.resize(capacity,nullptr);
+    }
+
+
+    int get (int key){
+        current_time++;
+       for (int i = 0; i < cacheList.size(); i++){
+        if(cacheList[i]!=nullptr && cacheList[i]->key==key){
+            cacheList[i]->freq++; 
+            cacheList[i]->time_stamp = current_time ; 
+            return cacheList[i]->key;
+        }
+     }
+    return -1 ;
+    }
+
+    void put (int key , int value) {
+        current_time++;
+        if(capacity==0) return ;
+
+        for (int i = 0; i < cacheList.size(); i++){
+        if(cacheList[i]!=nullptr && cacheList[i]->key==key){
+            cacheList[i]->freq++; 
+            cacheList[i]->time_stamp = current_time ; 
+            cacheList[i]->value= value ; 
+            return;
+        }
+        }
+
+        // find LFU item (if tie - LFU + LRU) and replace with (key,value)
+        if(cur_size < capacity){
+        cur_size++; 
+        cacheList[cur_size-1] = new Node1(key,value,current_time);
+        return ;
+        }
+
+        int min_freq = 1e9 , min_time = 1e9 , min_index = -1; 
+        for (int i = 0; i < cacheList.size(); i++){
+            if(cacheList[i]->freq < min_freq || (cacheList[i]->freq==min_freq && cacheList[i]->time_stamp<min_time)){
+                min_freq = cacheList[i]->freq ; 
+                min_time = cacheList[i]->time_stamp ; 
+                min_index = i;
+            }
+        }
+
+        cacheList[min_index] = new Node1(key,value,current_time);
+        return ;
+    }
+};
+
+
+// Approach 2 : using singly Linked List
+
+struct Node2 {
+    public: 
+    int key; 
+    int value ; 
+    int time_stamp ; 
+    int freq; 
+    Node2 *next; 
+
+    Node2(int key, int value , int time_stamp){
+        this->key = key ; 
+        this->value = value; 
+        this->time_stamp = time_stamp;
+        this->freq= 0;
+    }
+};
+
+class LFUCache2{
+    int capacity ; 
+    int current_time ; 
+    int cur_size;
+    Node2 *head ;
+
+    LFUCache2(int capacity){
+        this->capacity = capacity; 
+        this->current_time = 0; 
+        this->cur_size = 0;
+        this->head = new Node2 (-1,-1,-1);
+    }
+
+    int get (int key) {
+        current_time++; 
+        Node2 *temp = head;
+        while(temp->next!=nullptr){
+            if(temp->next->key==key){
+                temp->next->freq++; 
+                temp->next->time_stamp=current_time; 
+                return temp->next->value;
+            }
+            temp = temp->next;
+        }
+        return -1;
+    }
+
+    void put (int key, int value){
+        current_time++; 
+        Node2 *temp = head;
+        while(temp->next!=nullptr){
+            if(temp->next->key==key){
+                temp->next->freq++; 
+                temp->next->time_stamp=current_time; 
+                temp->next->value = value ; 
+                return;
+            }
+            temp = temp->next;
+        }
+
+        if(cur_size < capacity){
+            cur_size++; 
+            Node2 *temp = head;
+            while(temp->next!=nullptr){
+                temp = temp->next;
+            }
+            temp->next = new Node2(key,value,current_time);
+            return;
+        }
+
+        int min_freq = 1e9,  min_time = 1e9;
+        Node2 *min_node = nullptr ; 
+
+        Node2 *temp = head; 
+        while(temp->next!=nullptr){
+            if(temp->next->freq < min_freq || (temp->next->freq==min_freq && temp->next->time_stamp < min_time)){
+                min_freq = temp->next->freq ; 
+                min_time = temp->next->time_stamp;
+                min_node = temp;
+            }
+            temp = temp->next;
+        }
+
+        Node2 *node_to_delete = min_node->next; 
+        min_node->next = min_node->next->next;
+        delete(node_to_delete);
+
+        temp = head ; 
+        while(temp->next!=nullptr){
+            temp = temp->next ; 
+        }
+
+        temp->next = new Node2(key,value,current_time);
+    }
+};
+
+// Approach 3 : using doubly Linked List 
+struct Node {
+    int key ; 
+    int value ; 
+    int freq ; 
+    Node *prev ;
+    Node *next ;  
+
+    Node (int key, int value) {
+        this->key = key ; 
+        this->value = value; 
+        this->freq = 1; 
+        this->prev = nullptr; 
+        this->next = nullptr; 
+    }
+} ; 
+
+
+class LFUCache {
+    public: 
+    int capacity ; 
+    int min_freq ; 
+    unordered_map<int,Node*> cache_map ; 
+    unordered_map<int, pair<Node*,Node*>> freq_map ; 
+    
+    LFUCache(int capacity){
+        this->capacity = capacity ; 
+        this->min_freq = 0; 
+    }
+
+
+    int get (int key) {
+        if(cache_map.find(key)!=cache_map.end()) {
+            update_freq(cache_map[key]);
+            return cache_map[key]->value;
+        }
+        return -1; 
+    }
+
+    void put (int key, int value) {
+        if(cache_map.find(key)!=cache_map.end()){
+            cache_map[key]->value = value;
+            update_freq(cache_map[key]);
+            return ;
+        }
+
+        if(cache_map.size() < capacity) {
+            Node *new_node = new Node(key,value) ; 
+            cache_map[key] = new_node ; 
+            min_freq = 1; 
+            add(new_node,1);
+            return;
+        }
+
+        Node *node_to_delete = freq_map[min_freq].second->prev; 
+        cache_map.erase(node_to_delete->key); 
+        remove(node_to_delete);
+
+        if(freq_map[min_freq].first->next == freq_map[min_freq].second){
+            freq_map.erase(min_freq); 
+        }
+
+        delete node_to_delete ; 
+
+        Node *new_node = new Node(key,value) ; 
+        cache_map[key] = new_node ; 
+        min_freq = 1; 
+        add(new_node,1);
+        return;
+    }
+
+    // add node to the head of current frequency
+    void add (Node* node, int freq) {
+        if(freq_map.find(freq)==freq_map.end()) {
+            Node *head = new Node(-1,-1); 
+            Node *tail = new Node(-1,-1);
+            head->next = tail ; 
+            tail->prev = head ; 
+            freq_map[freq] = {head,tail} ; 
+        }
+
+        Node *head = freq_map[freq].first ; 
+        Node *temp = head->next ; 
+        head->next = node ; 
+        node->prev = head ; 
+        node->next = temp ; 
+        temp->prev = node ; 
+    }
+
+    void remove (Node *node){
+        Node *del_prev = node->prev ; 
+        Node *del_next = node->next ; 
+        del_prev->next = del_next ; 
+        del_next->prev = del_prev ; 
+    }
+
+
+    void update_freq (Node *node){
+        int old_freq = node->freq; 
+        node->freq++; 
+        remove(node); 
+        if(freq_map[old_freq].first->next==freq_map[old_freq].second){
+        freq_map.erase(old_freq);
+        if(min_freq==old_freq) min_freq++;
+        }
+        add(node,node->freq);
+    }
+};
+
+int main () {
+
+    LFUCache cache(2);
+    cache.put(1, 1);
+    cache.put(2, 2);
+    cout << cache.get(1) << " ";
+    cache.put(3, 3);
+    cout << cache.get(2) << " ";
+    cache.put(4, 4);
+    cout << cache.get(3) << " ";
+    cout << cache.get(4) << " ";
+    cache.put(5, 5);
+
+    return 0;
+}
